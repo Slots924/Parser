@@ -1,0 +1,22 @@
+# created by virtualenv automatically
+# 🐍 Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# 🧰 Віртуальне середовище
+venv/
+.venv/
+
+# 💻 IDE (PyCharm, VSCode тощо)
+.idea/
+.vscode/
+
+# 🗂️ Інше
+.DS_Store
+
+# Результати парсингу
+results/*
+!results/.gitkeep
