@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Tuple
 
 
 @dataclass(slots=True)
@@ -14,6 +14,8 @@ class AppConfig:
     ua_index: int = 3
     cookie_index: int = 5
     separator: str = " :: "
+    default_remark_indexes: Tuple[int, ...] = field(default_factory=tuple)
+    remark_indexes: Tuple[int, ...] | None = None
     tab_value: str = "https://www.facebook.com/"
     proxy_type: str = "noproxy"
     output_dir: Path = Path("results")
@@ -56,3 +58,12 @@ class AppConfig:
     def header_iter(self) -> Iterable[str]:
         """Return an iterator over headers preserving configured order."""
         return iter(self.headers)
+
+    def resolve_remark_indexes(self) -> Tuple[int, ...] | None:
+        """Return remark indexes from config or fall back to defaults."""
+
+        if self.remark_indexes:
+            return self.remark_indexes
+        if self.default_remark_indexes:
+            return self.default_remark_indexes
+        return None

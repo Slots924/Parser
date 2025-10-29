@@ -11,6 +11,7 @@ from parser_app.exporters.excel_exporter import ExcelExporter
 from parser_app.parsers.profile_parser import ProfileParser
 from parser_app.readers.text_reader import FileReader, TextReader
 from parser_app.services.pipeline import ProcessingPipeline
+from parser_app.utils import RemarkParseError, parse_remark_indexes
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -44,6 +45,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default=5,
         help="1-based index of the field containing cookies.",
     )
+    parser.add_argument(
+        "--remark-indexes",
+        type=str,
+        help="Comma or space separated list of 1-based indexes for the remark field.",
+    )
     return parser
 
 
@@ -70,6 +76,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         cookie_index=args.cookie_index,
         separator=args.separator,
     )
+
+    if args.remark_indexes is not None:
+        try:
+            remark_indexes = parse_remark_indexes(args.remark_indexes)
+        except RemarkParseError as exc:  # pragma: no cover - CLI guard
+            print(f"❌ {exc}")
+            return 1
+        if remark_indexes:
+            config.remark_indexes = remark_indexes
     if args.output_dir:
         config.output_dir = args.output_dir
 

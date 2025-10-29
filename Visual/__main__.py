@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
+from parser_app.utils import RemarkParseError, parse_remark_indexes
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -181,12 +182,27 @@ class MainWindow(QWidget):
 
     def on_start_clicked(self):
         """При натисканні Start — зчитуємо налаштування користувача."""
+        remark_raw = self.remark_edit.toPlainText()
+        try:
+            remark_indexes = parse_remark_indexes(remark_raw)
+        except RemarkParseError as exc:
+            self.log_text.append(f"[ERROR] {exc}")
+            return
+
         self.UserSettings = {
             "user_agent": int(self.combo_useragent.currentText()),
             "cookies": int(self.combo_cookies.currentText()),
-            "remark": self.remark_edit.toPlainText().strip()
+            "remark_indexes": remark_indexes,
         }
-        self.log_text.append(f"[INFO] Збережено UserSettings: {self.UserSettings}")
+
+        if remark_indexes:
+            self.log_text.append(
+                f"[INFO] Збережено UserSettings: {self.UserSettings}"
+            )
+        else:
+            self.log_text.append(
+                "[INFO] Збережено UserSettings без Remark (буде використано fallback)."
+            )
 
     def on_test_clicked(self):
         """
