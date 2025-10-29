@@ -1,10 +1,25 @@
 import sys
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QPushButton, QComboBox, QFrame
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QTextEdit,
+    QPushButton,
+    QComboBox,
+    QFrame,
 )
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+
+from parser_app.config import AppConfig
+from parser_app.exporters.excel_exporter import ExcelExporter
+from parser_app.models import ProfileRecord
+from parser_app.parsers.profile_parser import ProfileParser
+from parser_app.readers.text_reader import TextReader
+from parser_app.services.pipeline import ProcessingPipeline
 
 
 class MainWindow(QWidget):
@@ -172,6 +187,9 @@ class MainWindow(QWidget):
         # Змінна для збереження налаштувань користувача
         self.UserSettings = {}
 
+        # Підвантажуємо перші рядки з файлу, якщо він доступний
+        self._load_initial_text()
+
     def center_on_screen(self):
         """Центрує вікно по екрану."""
         rect = self.frameGeometry()
@@ -179,24 +197,132 @@ class MainWindow(QWidget):
         rect.moveCenter(center)
         self.move(rect.topLeft())
 
-    def on_start_clicked(self):
-        """При натисканні Start — зчитуємо налаштування користувача."""
+    def log_info(self, message: str) -> None:
+        self.log_text.append(f"[INFO] {message}")
+
+    def log_error(self, message: str) -> None:
+        self.log_text.append(f"[ERROR] {message}")
+
+    def _load_initial_text(self) -> None:
+        """Load the first three lines from my_input.txt into the main text area."""
+        input_path = Path(__file__).resolve().parent.parent / "my_input.txt"
+        if not input_path.exists():
+            self.log_error("Файл my_input.txt не знайдено для початкового завантаження.")
+            return
+
+        try:
+            lines: list[str] = []
+            with input_path.open(encoding="utf-8") as fh:
+                for _ in range(3):
+                    line = fh.readline()
+                    if not line:
+                        break
+                    lines.append(line.rstrip("\n"))
+        except OSError as exc:
+            self.log_error(f"Не вдалося прочитати my_input.txt: {exc}")
+            return
+
+        if lines:
+            self.main_text.setPlainText("\n".join(lines))
+            self.log_info("Завантажено перші три рядки з my_input.txt.")
+
+    def _collect_inputs(self) -> tuple[AppConfig, str]:
+        """Validate UI inputs and build configuration/text payload."""
+        try:
+            ua_index = int(self.combo_useragent.currentText())
+            cookie_index = int(self.combo_cookies.currentText())
+        except ValueError:
+            raise ValueError("Некоректні числові значення індексів User Agent або Cookies.")
+
+        text = self.main_text.toPlainText()
+        if not text.strip():
+            raise ValueError("Вхідний текст порожній. Додайте дані для парсингу.")
+
+        config = AppConfig(
+            ua_index=ua_index,
+            cookie_index=cookie_index,
+        )
+
+        # Зберігаємо налаштування користувача для відображення в логах
         self.UserSettings = {
-            "user_agent": int(self.combo_useragent.currentText()),
-            "cookies": int(self.combo_cookies.currentText()),
-            "remark": self.remark_edit.toPlainText().strip()
+            "user_agent": ua_index,
+            "cookies": cookie_index,
+            "remark": self.remark_edit.toPlainText().strip(),
         }
-        self.log_text.append(f"[INFO] Збережено UserSettings: {self.UserSettings}")
+
+        return config, text
+
+    def _parse_first_record(self, text: str, config: AppConfig) -> tuple[list[str], ProfileRecord]:
+        """Parse the first record from the provided text using the config."""
+        reader = TextReader(text)
+        parser = ProfileParser(config)
+        raw_records = reader.read()
+        try:
+            raw = next(raw_records)
+        except StopIteration:
+            raise ValueError("Не знайдено жодного рядка для парсингу.")
+
+        parts = raw.parts(config.separator)
+        record = parser.parse(raw)
+        return parts, record
+
+    def _display_first_record(self, text: str, config: AppConfig) -> bool:
+        try:
+            parts, record = self._parse_first_record(text, config)
+        except Exception as exc:  # noqa: BLE001 - показуємо користувачу помилку
+            self.info_text.clear()
+            self.log_error(f"Не вдалося розпарсити перший рядок: {exc}")
+            return False
+
+        formatted_parts = "\n".join(f"[{idx}] {value}" for idx, value in enumerate(parts, start=1))
+        details = [
+            formatted_parts,
+            "",
+            f"UA: {record.ua or '(порожньо)'}",
+            f"Cookie: {record.cookie or '(порожньо)'}",
+            f"Remark: {record.remark or '(порожньо)'}",
+        ]
+        self.info_text.setPlainText("\n".join(details))
+        return True
+
+    def on_start_clicked(self):
+        """Handle Start button: run pipeline and export data."""
+        try:
+            config, text = self._collect_inputs()
+        except ValueError as exc:
+            self.info_text.clear()
+            self.log_error(str(exc))
+            return
+
+        try:
+            pipeline = ProcessingPipeline(
+                reader=TextReader(text),
+                parser=ProfileParser(config),
+                exporter=ExcelExporter(config),
+            )
+            output_path = pipeline.run()
+        except Exception as exc:  # noqa: BLE001 - показуємо помилку у лог
+            self.info_text.clear()
+            self.log_error(f"Помилка під час виконання пайплайна: {exc}")
+            return
+
+        self.log_info(f"Збережено UserSettings: {self.UserSettings}")
+        self.log_info(f"Файл створено: {output_path}")
+
+        if self._display_first_record(text, config):
+            self.log_info("Відображено перший розпарсений рядок.")
 
     def on_test_clicked(self):
-        """
-        Тимчасова заглушка:
-        При натисканні 'Test' має розпарситись перший рядок масиву даних.
-        Наразі просто показує приклад форматування у правому вікні.
-        """
-        parsed_example = "[1] Jon\n[2] email\n[3] Cookie"
-        self.info_text.setPlainText(parsed_example)
-        self.log_text.append("[DEBUG] Виконано тестове парсення (приклад).")
+        """Handle Test button: parse first line without exporting the data."""
+        try:
+            config, text = self._collect_inputs()
+        except ValueError as exc:
+            self.info_text.clear()
+            self.log_error(str(exc))
+            return
+
+        if self._display_first_record(text, config):
+            self.log_info("Успішно розпарсено перший рядок (без експорту).")
 
 
 # ---------- Точка входу ----------
