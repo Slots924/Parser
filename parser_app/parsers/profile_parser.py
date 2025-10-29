@@ -29,8 +29,17 @@ class ProfileParser(BaseParser):
         return record
 
     def _build_remark(self, parts: list[str]) -> str:
-        if self.config.cookie_index >= len(parts):
+        indices = self.config.remark_indices
+        if indices:
+            values = [safe_get(parts, index).strip() for index in indices]
+            remark = self.config.separator.join(values).strip()
+            return remark
+
+        cookie_index = self.config.cookie_index
+        if cookie_index <= 0:
             return ""
-        trailing = parts[self.config.cookie_index :]
+        if cookie_index >= len(parts):
+            return ""
+        trailing = parts[cookie_index :]
         remark = self.config.separator.join(trailing).strip()
         return remark

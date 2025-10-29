@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
+from parser_app.services.pipeline_builder import build_pipeline_from_text, parse_remark_indices
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -181,12 +183,42 @@ class MainWindow(QWidget):
 
     def on_start_clicked(self):
         """При натисканні Start — зчитуємо налаштування користувача."""
+        ua_index = int(self.combo_useragent.currentText())
+        cookie_index = int(self.combo_cookies.currentText())
+        remark_raw = self.remark_edit.toPlainText().strip()
+
+        remark_indices = None
+        if remark_raw:
+            try:
+                remark_indices = parse_remark_indices(remark_raw)
+            except ValueError as exc:
+                self.log_text.append(f"[ERROR] Некоректні remark-індекси: {exc}")
+                return
+
+        text = self.main_text.toPlainText()
+        if not text.strip():
+            self.log_text.append("[WARN] Введіть текст для парсингу перед стартом.")
+            return
+
+        try:
+            pipeline = build_pipeline_from_text(
+                text,
+                ua_index=ua_index,
+                cookie_index=cookie_index,
+                remark_indices=remark_indices,
+            )
+            output_path = pipeline.run()
+        except Exception as exc:  # pragma: no cover - GUI runtime error path
+            self.log_text.append(f"[ERROR] Не вдалося виконати парсинг: {exc}")
+            return
+
         self.UserSettings = {
-            "user_agent": int(self.combo_useragent.currentText()),
-            "cookies": int(self.combo_cookies.currentText()),
-            "remark": self.remark_edit.toPlainText().strip()
+            "user_agent": ua_index,
+            "cookies": cookie_index,
+            "remark": remark_raw,
         }
         self.log_text.append(f"[INFO] Збережено UserSettings: {self.UserSettings}")
+        self.log_text.append(f"[INFO] Файл створено: {output_path}")
 
     def on_test_clicked(self):
         """
