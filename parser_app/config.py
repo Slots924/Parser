@@ -17,7 +17,6 @@ class AppConfig:
     tab_value: str = "https://www.facebook.com/"
     proxy_type: str = "noproxy"
     output_dir: Path = Path("results")
-    remark_indices: tuple[int, ...] | None = None
     workbook_title: str = "Parsed Data"
     headers: Sequence[str] = field(
         default_factory=lambda: (

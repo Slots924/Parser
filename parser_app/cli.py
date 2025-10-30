@@ -6,7 +6,11 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from parser_app.services.pipeline_builder import build_pipeline_from_text, parse_remark_indices
+from parser_app.config import AppConfig
+from parser_app.exporters.excel_exporter import ExcelExporter
+from parser_app.parsers.profile_parser import ProfileParser
+from parser_app.readers.text_reader import FileReader, TextReader
+from parser_app.services.pipeline import ProcessingPipeline
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -40,13 +44,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default=5,
         help="1-based index of the field containing cookies.",
     )
-    parser.add_argument(
-        "--remark-indices",
-        help=(
-            "Comma-separated list of 1-based indexes that should be combined into the remark. "
-            "If omitted, the remark is built from the cookie index to the end."
-        ),
-    )
     return parser
 
 
@@ -68,25 +65,23 @@ def load_text(input_path: Optional[Path] = None) -> str:
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_argument_parser().parse_args(argv)
 
-    text = load_text(args.input)
-
-    remark_indices = None
-    if args.remark_indices:
-        try:
-            parsed = parse_remark_indices(args.remark_indices)
-        except ValueError as exc:
-            print(f"Помилка у --remark-indices: {exc}", file=sys.stderr)
-            return 2
-        remark_indices = parsed
-
-    pipeline = build_pipeline_from_text(
-        text,
+    config = AppConfig(
         ua_index=args.ua_index,
         cookie_index=args.cookie_index,
         separator=args.separator,
-        remark_indices=remark_indices,
-        output_dir=args.output_dir,
     )
+    if args.output_dir:
+        config.output_dir = args.output_dir
+
+    if args.input:
+        reader: TextReader = FileReader(args.input)
+    else:
+        text = load_text()
+        reader = TextReader(text)
+
+    parser = ProfileParser(config)
+    exporter = ExcelExporter(config)
+    pipeline = ProcessingPipeline(reader=reader, parser=parser, exporter=exporter)
 
     output_path = pipeline.run()
     print(f"✅ Файл створено: {output_path}")
