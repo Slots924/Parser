@@ -1,21 +1,12 @@
 import sys
-from pathlib import Path
-
 from PyQt6.QtWidgets import (
-    QApplication,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QTextEdit,
-    QPushButton,
-    QComboBox,
-    QFrame,
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
+    QPushButton, QComboBox, QFrame
 )
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 from parser_app.services.pipeline_builder import build_pipeline_from_text, parse_remark_indices
-from parser_app.services.preview import preview_first_row
 
 
 class MainWindow(QWidget):
@@ -183,9 +174,6 @@ class MainWindow(QWidget):
         # Змінна для збереження налаштувань користувача
         self.UserSettings = {}
 
-        # Підвантажуємо перші рядки з файлу, якщо він доступний
-        self._load_initial_text()
-
     def center_on_screen(self):
         """Центрує вікно по екрану."""
         rect = self.frameGeometry()
@@ -193,152 +181,54 @@ class MainWindow(QWidget):
         rect.moveCenter(center)
         self.move(rect.topLeft())
 
-    def log_info(self, message: str) -> None:
-        self.log_text.append(f"[INFO] {message}")
-
-    def log_error(self, message: str) -> None:
-        self.log_text.append(f"[ERROR] {message}")
-
-    def _load_initial_text(self) -> None:
-        """Load the first three lines from my_input.txt into the editor."""
-        input_path = Path(__file__).resolve().parent.parent / "my_input.txt"
-        if not input_path.exists():
-            self.log_error("Файл my_input.txt не знайдено для початкового завантаження.")
-            return
-
-        try:
-            lines: list[str] = []
-            with input_path.open(encoding="utf-8") as fh:
-                for _ in range(3):
-                    line = fh.readline()
-                    if not line:
-                        break
-                    lines.append(line.rstrip("\n"))
-        except OSError as exc:  # pragma: no cover - залежить від файлової системи
-            self.log_error(f"Не вдалося прочитати my_input.txt: {exc}")
-            return
-
-        if lines:
-            self.main_text.setPlainText("\n".join(lines))
-            self.log_info("Завантажено перші три рядки з my_input.txt.")
-
-    def _collect_inputs(self) -> dict[str, object]:
-        """Validate user inputs and prepare pipeline arguments."""
-        try:
-            ua_index = int(self.combo_useragent.currentText())
-            cookie_index = int(self.combo_cookies.currentText())
-        except ValueError:
-            raise ValueError("Некоректні числові значення індексів User Agent або Cookies.")
-
-        text = self.main_text.toPlainText()
-        if not text.strip():
-            raise ValueError("Вхідний текст порожній. Додайте дані для парсингу.")
-
+    def on_start_clicked(self):
+        """При натисканні Start — зчитуємо налаштування користувача."""
+        ua_index = int(self.combo_useragent.currentText())
+        cookie_index = int(self.combo_cookies.currentText())
         remark_raw = self.remark_edit.toPlainText().strip()
+
         remark_indices = None
         if remark_raw:
             try:
                 remark_indices = parse_remark_indices(remark_raw)
             except ValueError as exc:
-                raise ValueError(f"Некоректні remark-індекси: {exc}") from exc
+                self.log_text.append(f"[ERROR] Некоректні remark-індекси: {exc}")
+                return
 
-        return {
-            "text": text,
-            "ua_index": ua_index,
-            "cookie_index": cookie_index,
-            "remark_raw": remark_raw,
-            "remark_indices": remark_indices,
-        }
-
-    def _build_pipeline(self, params: dict[str, object]):
-        return build_pipeline_from_text(
-            params["text"],
-            ua_index=params["ua_index"],
-            cookie_index=params["cookie_index"],
-            remark_indices=params["remark_indices"],
-        )
-
-    def _display_first_record(self, pipeline) -> bool:
-        try:
-            raw_iter = pipeline.reader.read()
-            first_raw = next(raw_iter)
-        except StopIteration:
-            self.info_text.clear()
-            self.log_error("Не знайдено жодного рядка для парсингу.")
-            return False
-        except Exception as exc:  # pragma: no cover - GUI runtime error path
-            self.info_text.clear()
-            self.log_error(f"Помилка при читанні даних: {exc}")
-            return False
-
-        try:
-            record = pipeline.parser.parse(first_raw)
-        except Exception as exc:  # pragma: no cover - GUI runtime error path
-            self.info_text.clear()
-            self.log_error(f"Не вдалося розпарсити перший рядок: {exc}")
-            return False
-
-        separator = pipeline.parser.config.separator
-        preview_rows = preview_first_row([first_raw.content], separator=separator)
-        if not preview_rows:
-            self.info_text.clear()
-            self.log_error("Перший рядок порожній після обробки.")
-            return False
-
-        formatted_parts = "\n".join(f"[{index}] {value}" for index, value in preview_rows)
-        details = [
-            formatted_parts,
-            "",
-            f"UA: {record.ua or '(порожньо)'}",
-            f"Cookie: {record.cookie or '(порожньо)'}",
-            f"Remark: {record.remark or '(порожньо)'}",
-        ]
-        self.info_text.setPlainText("\n".join(details))
-        return True
-
-    def on_start_clicked(self):
-        """Handle Start button: run pipeline and export data."""
-        try:
-            params = self._collect_inputs()
-        except ValueError as exc:
-            self.info_text.clear()
-            self.log_error(str(exc))
+        text = self.main_text.toPlainText()
+        if not text.strip():
+            self.log_text.append("[WARN] Введіть текст для парсингу перед стартом.")
             return
 
-        pipeline = self._build_pipeline(params)
-
-        self.UserSettings = {
-            "user_agent": params["ua_index"],
-            "cookies": params["cookie_index"],
-            "remark": params["remark_raw"],
-        }
-
         try:
+            pipeline = build_pipeline_from_text(
+                text,
+                ua_index=ua_index,
+                cookie_index=cookie_index,
+                remark_indices=remark_indices,
+            )
             output_path = pipeline.run()
         except Exception as exc:  # pragma: no cover - GUI runtime error path
-            self.info_text.clear()
-            self.log_error(f"Не вдалося виконати парсинг: {exc}")
+            self.log_text.append(f"[ERROR] Не вдалося виконати парсинг: {exc}")
             return
 
-        if self._display_first_record(pipeline):
-            self.log_info("Відображено перший розпарсений рядок.")
-
-        self.log_info(f"Збережено UserSettings: {self.UserSettings}")
-        self.log_info(f"Файл створено: {output_path}")
+        self.UserSettings = {
+            "user_agent": ua_index,
+            "cookies": cookie_index,
+            "remark": remark_raw,
+        }
+        self.log_text.append(f"[INFO] Збережено UserSettings: {self.UserSettings}")
+        self.log_text.append(f"[INFO] Файл створено: {output_path}")
 
     def on_test_clicked(self):
-        """Handle Test button: preview the first parsed row without exporting."""
-        try:
-            params = self._collect_inputs()
-        except ValueError as exc:
-            self.info_text.clear()
-            self.log_error(str(exc))
-            return
-
-        pipeline = self._build_pipeline(params)
-
-        if self._display_first_record(pipeline):
-            self.log_info("Успішно розпарсено перший рядок (без експорту).")
+        """
+        Тимчасова заглушка:
+        При натисканні 'Test' має розпарситись перший рядок масиву даних.
+        Наразі просто показує приклад форматування у правому вікні.
+        """
+        parsed_example = "[1] Jon\n[2] email\n[3] Cookie"
+        self.info_text.setPlainText(parsed_example)
+        self.log_text.append("[DEBUG] Виконано тестове парсення (приклад).")
 
 
 # ---------- Точка входу ----------
