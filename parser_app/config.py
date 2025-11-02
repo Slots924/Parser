@@ -13,6 +13,8 @@ class AppConfig:
 
     ua_index: int = 3
     cookie_index: int = 5
+    remark_indices: Sequence[int] = field(default_factory=lambda: (0,))
+    remark_delimiter: str = " || "
     separator: str = " :: "
     tab_value: str = "https://www.facebook.com/"
     proxy_type: str = "noproxy"
