@@ -8,11 +8,12 @@ from typing import Iterable, Sequence
 
 from settings import (
     COOKIE_INDEX,
+    DEFAULT_SEPARATOR,
     HEADERS,
     OUTPUT_DIR,
     PROXY_TYPE,
     REMARK_DELIMITER,
-    REMARK_INDICES,
+    REMARK_INDEX,
     SEPARATOR,
     TAB_VALUE,
     UA_INDEX,
@@ -26,9 +27,10 @@ class AppConfig:
 
     ua_index: int = UA_INDEX
     cookie_index: int = COOKIE_INDEX
-    remark_indices: Sequence[int] = field(default_factory=lambda: REMARK_INDICES)
+    remark_indices: Sequence[int] = field(default_factory=lambda: tuple(REMARK_INDEX))
     remark_delimiter: str = REMARK_DELIMITER
-    separator: str = SEPARATOR
+    separator_options: Sequence[str] = field(default_factory=lambda: tuple(SEPARATOR))
+    separator: str = DEFAULT_SEPARATOR
     tab_value: str = TAB_VALUE
     proxy_type: str = PROXY_TYPE
     output_dir: Path = field(default_factory=lambda: Path(OUTPUT_DIR))
