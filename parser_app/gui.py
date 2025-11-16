@@ -63,6 +63,7 @@ class ParserGUI:
         style.configure("Heading.TLabel", font=("Segoe UI", 12, "bold"), foreground="#2f2f33")
         style.configure("Hint.TLabel", font=("Segoe UI", 10), foreground="#6b6b76")
         style.configure("Start.TButton", font=("Segoe UI", 11, "bold"))
+        style.configure("Test.TButton", font=("Segoe UI", 10), padding=(4, 2))
 
     def _configure_root(self) -> None:
         self.root.title("Parser App")
@@ -100,6 +101,14 @@ class ParserGUI:
             command=self._on_start,
         )
         self.start_button.grid(row=2, column=0, sticky="swe", pady=(24, 0))
+
+        self.test_button = ttk.Button(
+            self.settings_container,
+            text="Тест",
+            style="Test.TButton",
+            command=self._on_test,
+        )
+        self.test_button.grid(row=3, column=0, sticky="swe", pady=(8, 0))
 
         main_area = ttk.Frame(self.root, padding=(16, 16, 16, 16))
         main_area.grid(row=0, column=1, sticky="nsew")
@@ -208,6 +217,57 @@ class ParserGUI:
         except (tk.TclError, ValueError):
             return 0
         return max(0, min(99, value))
+
+    def _on_test(self) -> None:
+        """Parse only the first row and show the result in a separate window."""
+
+        self._sync_config_from_form()
+        raw_text = self.text_widget.get("1.0", "end-1c")
+        if not raw_text.strip():
+            messagebox.showinfo("Немає даних", "Введіть або вставте дані для тесту.")
+            return
+
+        lines = [line for line in raw_text.splitlines() if line.strip()]
+        if not lines:
+            messagebox.showinfo("Немає даних", "Введіть або вставте дані для тесту.")
+            return
+
+        first_line = lines[0]
+        separator = self.separator_var.get() or self.config.separator
+        parsed_values = first_line.split(separator)
+        self._show_test_result(parsed_values)
+
+    def _show_test_result(self, values: list[str]) -> None:
+        """Display parsed values of the first line in a scrollable window."""
+
+        result_window = tk.Toplevel(self.root)
+        result_window.title("Результат тесту")
+        result_window.minsize(360, 240)
+
+        frame = ttk.Frame(result_window, padding=12)
+        frame.grid(row=0, column=0, sticky="nsew")
+        result_window.columnconfigure(0, weight=1)
+        result_window.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+
+        text_widget = tk.Text(frame, wrap="none", font=("Consolas", 11), state="normal")
+        text_widget.grid(row=0, column=0, sticky="nsew")
+
+        v_scroll = ttk.Scrollbar(frame, orient="vertical", command=text_widget.yview)
+        v_scroll.grid(row=0, column=1, sticky="ns")
+
+        h_scroll = ttk.Scrollbar(frame, orient="horizontal", command=text_widget.xview)
+        h_scroll.grid(row=1, column=0, sticky="ew")
+
+        text_widget.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        formatted_lines = [f"[{idx}] - {value.strip()}" for idx, value in enumerate(values, start=1)]
+        if not formatted_lines:
+            formatted_lines = ["Дані для відображення відсутні."]
+
+        text_widget.insert("1.0", "\n".join(formatted_lines))
+        text_widget.configure(state="disabled")
 
 
 def run() -> None:
