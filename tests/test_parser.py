@@ -45,3 +45,29 @@ def test_profile_parser_uses_custom_remark_delimiter():
     record = parser.parse(raw)
 
     assert record.remark == "alpha || delta || beta"
+
+
+def test_profile_parser_handles_single_remark_index():
+    config = AppConfig(remark_indices=(6,))
+    parser = ProfileParser(config)
+    raw = RawRecord(
+        line_no=1,
+        content="name :: token :: ua :: extra :: cookie :: only one",
+    )
+
+    record = parser.parse(raw)
+
+    assert record.remark == "only one"
+
+
+def test_profile_parser_handles_repeated_zero_indices():
+    config = AppConfig(remark_indices=(0, 6, 0))
+    parser = ProfileParser(config)
+    raw = RawRecord(
+        line_no=1,
+        content="name :: token :: ua :: extra :: cookie :: final remark",
+    )
+
+    record = parser.parse(raw)
+
+    assert record.remark == "final remark"

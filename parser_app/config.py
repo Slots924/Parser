@@ -6,43 +6,34 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from settings import (
+    COOKIE_INDEX,
+    HEADERS,
+    OUTPUT_DIR,
+    PROXY_TYPE,
+    REMARK_DELIMITER,
+    REMARK_INDICES,
+    SEPARATOR,
+    TAB_VALUE,
+    UA_INDEX,
+    WORKBOOK_TITLE,
+)
+
 
 @dataclass(slots=True)
 class AppConfig:
     """Holds runtime configuration for the parsing pipeline."""
 
-    ua_index: int = 3
-    cookie_index: int = 5
-    remark_indices: Sequence[int] = field(default_factory=lambda: (6,7))
-    remark_delimiter: str = " :: "
-    separator: str = " :: "
-    tab_value: str = "https://www.facebook.com/"
-    proxy_type: str = "noproxy"
-    output_dir: Path = Path("results")
-    workbook_title: str = "Parsed Data"
-    headers: Sequence[str] = field(
-        default_factory=lambda: (
-            "name",
-            "remark",
-            "tab",
-            "platform",
-            "username",
-            "password",
-            "fakey",
-            "cookie",
-            "proxytype",
-            "ipchecker",
-            "proxy",
-            "proxyurl",
-            "proxyid",
-            "ip",
-            "countrycode",
-            "regioncode",
-            "citycode",
-            "ua",
-            "resolution",
-        )
-    )
+    ua_index: int = UA_INDEX
+    cookie_index: int = COOKIE_INDEX
+    remark_indices: Sequence[int] = field(default_factory=lambda: REMARK_INDICES)
+    remark_delimiter: str = REMARK_DELIMITER
+    separator: str = SEPARATOR
+    tab_value: str = TAB_VALUE
+    proxy_type: str = PROXY_TYPE
+    output_dir: Path = field(default_factory=lambda: Path(OUTPUT_DIR))
+    workbook_title: str = WORKBOOK_TITLE
+    headers: Sequence[str] = field(default_factory=lambda: HEADERS)
 
     def ensure_output_dir(self) -> Path:
         """Ensure the configured output directory exists and return it."""
