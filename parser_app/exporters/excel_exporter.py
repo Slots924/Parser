@@ -83,24 +83,25 @@ class ExcelExporter(BaseExporter):
             "I": PatternFill(fill_type="solid", fgColor="FFCFE2F3"),
             "R": PatternFill(fill_type="solid", fgColor="FFC9DAF8"),
         }
-        wrap_columns = {"B", "H", "R"}
+        clip_columns = {"B", "H", "R"}
+        clip_alignment = Alignment(wrap_text=False)
 
         max_row = worksheet.max_row
         for col_idx in range(1, len(headers) + 1):
             column_letter = get_column_letter(col_idx)
             column_fill = column_fills.get(column_letter)
-            should_wrap = column_letter in wrap_columns
+            should_clip = column_letter in clip_columns
 
             for row in range(1, max_row + 1):
                 cell = worksheet[f"{column_letter}{row}"]
                 if row == 1:
-                    if should_wrap:
-                        cell.alignment = Alignment(horizontal="center", wrap_text=True)
+                    if should_clip:
+                        cell.alignment = Alignment(horizontal="center", wrap_text=False)
                     else:
                         cell.alignment = header_alignment
                     cell.font = header_font
-                elif should_wrap:
-                    cell.alignment = Alignment(wrap_text=True)
+                elif should_clip:
+                    cell.alignment = clip_alignment
 
                 if column_fill is not None:
                     cell.fill = column_fill
