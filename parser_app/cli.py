@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from parser_app.config import AppConfig
+from settings import DEFAULT_SEPARATOR
 from parser_app.exporters.excel_exporter import ExcelExporter
 from parser_app.parsers.profile_parser import ProfileParser
 from parser_app.readers.text_reader import FileReader, TextReader
@@ -29,8 +30,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--separator",
-        default=" :: ",
-        help="Field separator used in the input data (default: ' :: ').",
+        default=DEFAULT_SEPARATOR,
+        help=f"Field separator used in the input data (default: '{DEFAULT_SEPARATOR}').",
     )
     parser.add_argument(
         "--ua-index",

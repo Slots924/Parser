@@ -5,10 +5,11 @@ from pathlib import Path
 # column positions in the raw input.
 UA_INDEX = 3
 COOKIE_INDEX = 5
-REMARK_INDICES: tuple[int, ...] = (6, 7)
+REMARK_INDEX: list[int] = [6, 7, 0]
 
 REMARK_DELIMITER = " :: "
-SEPARATOR = " :: "
+SEPARATOR: list[str] = [" :: ", ",", ";", "|", "\t"]
+DEFAULT_SEPARATOR = SEPARATOR[0]
 TAB_VALUE = "https://www.facebook.com/"
 PROXY_TYPE = "noproxy"
 
