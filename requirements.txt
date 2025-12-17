@@ -1,0 +1,5 @@
+# Application dependencies
+openpyxl
+
+# Development and testing dependencies
+pytest
