@@ -15,6 +15,8 @@ from parser_app.services.pipeline import ProcessingPipeline
 class ParserGUI:
     """Tkinter based GUI shell around the parsing pipeline."""
 
+    REMARK_FIELD_COUNT = 6
+
     def __init__(self, root: tk.Tk | None = None, config: AppConfig | None = None) -> None:
         self.root = root or tk.Tk()
         self.config = config or AppConfig()
@@ -31,10 +33,10 @@ class ParserGUI:
         self.cookie_index_var = tk.IntVar(value=self.config.cookie_index)
 
         remark_defaults = list(self.config.remark_indices)
-        if len(remark_defaults) < 3:
-            remark_defaults.extend([0] * (3 - len(remark_defaults)))
+        if len(remark_defaults) < self.REMARK_FIELD_COUNT:
+            remark_defaults.extend([0] * (self.REMARK_FIELD_COUNT - len(remark_defaults)))
         else:
-            remark_defaults = remark_defaults[:3]
+            remark_defaults = remark_defaults[: self.REMARK_FIELD_COUNT]
         self.remark_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in remark_defaults]
 
         separator_options = list(dict.fromkeys(self.config.separator_options))
