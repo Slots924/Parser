@@ -71,3 +71,39 @@ def test_profile_parser_handles_repeated_zero_indices():
     record = parser.parse(raw)
 
     assert record.remark == "final remark"
+
+
+def test_profile_parser_builds_platform_username_password_and_fakey():
+    config = AppConfig(
+        platform_value="  facebook.com,amazon.com  ",
+        username_indices=(1, 2, 0),
+        password_indices=(3, 4, 0),
+        fakey_indices=(5, 6, 0),
+    )
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="username1 :: username2 :: password1 :: password2 :: key1 :: key2")
+
+    record = parser.parse(raw)
+
+    assert record.platform == "facebook.com,amazon.com"
+    assert record.username == "username1,username2"
+    assert record.password == '"password1","password2"'
+    assert record.fakey == "key1,key2"
+
+
+def test_profile_parser_skips_optional_fields_for_zero_indices():
+    config = AppConfig(
+        platform_value="  amazon.com  ",
+        username_indices=(0, 0, 0),
+        password_indices=(0, 0, 0),
+        fakey_indices=(0, 0, 0),
+    )
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="user :: pass :: key")
+
+    record = parser.parse(raw)
+
+    assert record.platform == "amazon.com"
+    assert record.username == ""
+    assert record.password == ""
+    assert record.fakey == ""

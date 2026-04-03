@@ -20,10 +20,17 @@ class ProfileParser(BaseParser):
         ua = safe_get(parts, self.config.ua_index)
         cookie = safe_get(parts, self.config.cookie_index)
         remark = self._build_remark(parts, self.config.remark_indices)
+        username_values = self._collect_values(parts, self.config.username_indices)
+        password_values = self._collect_values(parts, self.config.password_indices)
+        fakey_values = self._collect_values(parts, self.config.fakey_indices)
 
         record = ProfileRecord(
             remark=remark,
             tab=self.config.tab_value,
+            platform=self.config.platform_value.strip(),
+            username=",".join(username_values),
+            password=",".join(f'"{value}"' for value in password_values),
+            fakey=",".join(fakey_values),
             cookie=cookie,
             proxytype=self.config.proxy_type,
             ua=ua,
@@ -48,3 +55,13 @@ class ProfileParser(BaseParser):
             return ""
 
         return self.config.remark_delimiter.join(values)
+
+    def _collect_values(self, parts: list[str], indices: Sequence[int]) -> list[str]:
+        values: list[str] = []
+        for index in indices:
+            if index <= 0:
+                continue
+            value = safe_get(parts, index).strip()
+            if value:
+                values.append(value)
+        return values

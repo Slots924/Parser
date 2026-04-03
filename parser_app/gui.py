@@ -4,6 +4,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+from typing import Sequence
 
 from parser_app.config import AppConfig
 from parser_app.exporters.excel_exporter import ExcelExporter
@@ -16,6 +17,7 @@ class ParserGUI:
     """Tkinter based GUI shell around the parsing pipeline."""
 
     REMARK_FIELD_COUNT = 6
+    MULTI_FIELD_COUNT = 3
 
     def __init__(self, root: tk.Tk | None = None, config: AppConfig | None = None) -> None:
         self.root = root or tk.Tk()
@@ -31,6 +33,7 @@ class ParserGUI:
 
         self.ua_index_var = tk.IntVar(value=self.config.ua_index)
         self.cookie_index_var = tk.IntVar(value=self.config.cookie_index)
+        self.platform_var = tk.StringVar(value=self.config.platform_value)
 
         remark_defaults = list(self.config.remark_indices)
         if len(remark_defaults) < self.REMARK_FIELD_COUNT:
@@ -38,6 +41,12 @@ class ParserGUI:
         else:
             remark_defaults = remark_defaults[: self.REMARK_FIELD_COUNT]
         self.remark_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in remark_defaults]
+        username_defaults = self._normalize_indices(self.config.username_indices)
+        password_defaults = self._normalize_indices(self.config.password_indices)
+        fakey_defaults = self._normalize_indices(self.config.fakey_indices)
+        self.username_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in username_defaults]
+        self.password_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in password_defaults]
+        self.fakey_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in fakey_defaults]
 
         separator_options = list(dict.fromkeys(self.config.separator_options))
         if not separator_options:
@@ -141,6 +150,14 @@ class ParserGUI:
         row += 1
         self._add_remark_row(form, row)
         row += 1
+        self._add_labeled_entry(form, row, "PLATFORM", self.platform_var)
+        row += 1
+        self._add_multi_spinbox_row(form, row, "USERNAME", self.username_index_vars)
+        row += 1
+        self._add_multi_spinbox_row(form, row, "PASSWORD", self.password_index_vars)
+        row += 1
+        self._add_multi_spinbox_row(form, row, "FAKEY", self.fakey_index_vars)
+        row += 1
         self._add_separator_row(form, row)
 
     def _add_labeled_spinbox(self, parent: ttk.Frame, row: int, label_text: str, variable: tk.IntVar) -> None:
@@ -148,6 +165,18 @@ class ParserGUI:
         label.grid(row=row, column=0, sticky="w", pady=(0, 8))
         spinbox = self._create_spinbox(parent, variable)
         spinbox.grid(row=row, column=1, sticky="w", pady=(0, 8))
+
+    def _add_labeled_entry(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        label_text: str,
+        variable: tk.StringVar,
+    ) -> None:
+        label = ttk.Label(parent, text=label_text, anchor="w")
+        label.grid(row=row, column=0, sticky="w", pady=(0, 8))
+        entry = ttk.Entry(parent, textvariable=variable)
+        entry.grid(row=row, column=1, sticky="we", pady=(0, 8))
 
     def _add_remark_row(self, parent: ttk.Frame, row: int) -> None:
         label = ttk.Label(parent, text="REMARK_INDEX", anchor="w")
@@ -172,6 +201,23 @@ class ParserGUI:
         )
         separator_box.grid(row=row, column=1, sticky="we", pady=(0, 8))
         self.separator_combobox = separator_box
+
+    def _add_multi_spinbox_row(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        label_text: str,
+        variables: list[tk.IntVar],
+    ) -> None:
+        label = ttk.Label(parent, text=label_text, anchor="w")
+        label.grid(row=row, column=0, sticky="w", pady=(0, 8))
+
+        values_frame = ttk.Frame(parent, style="Settings.TFrame")
+        values_frame.grid(row=row, column=1, sticky="w", pady=(0, 8))
+        for idx, variable in enumerate(variables):
+            spinbox = self._create_spinbox(values_frame, variable)
+            padx = (0, 8) if idx < len(variables) - 1 else 0
+            spinbox.grid(row=0, column=idx, sticky="w", padx=padx)
 
     def _create_spinbox(self, parent: ttk.Widget, variable: tk.IntVar) -> ttk.Spinbox:
         spinbox = ttk.Spinbox(
@@ -211,6 +257,16 @@ class ParserGUI:
         self.config.remark_indices = tuple(
             self._clamp_spinbox_value(variable) for variable in self.remark_index_vars
         )
+        self.config.platform_value = self.platform_var.get().strip()
+        self.config.username_indices = tuple(
+            self._clamp_spinbox_value(variable) for variable in self.username_index_vars
+        )
+        self.config.password_indices = tuple(
+            self._clamp_spinbox_value(variable) for variable in self.password_index_vars
+        )
+        self.config.fakey_indices = tuple(
+            self._clamp_spinbox_value(variable) for variable in self.fakey_index_vars
+        )
         self.config.separator = self.separator_var.get()
 
     def _clamp_spinbox_value(self, variable: tk.IntVar) -> int:
@@ -219,6 +275,14 @@ class ParserGUI:
         except (tk.TclError, ValueError):
             return 0
         return max(0, min(99, value))
+
+    def _normalize_indices(self, indices: Sequence[int]) -> list[int]:
+        values = list(indices)
+        if len(values) < self.MULTI_FIELD_COUNT:
+            values.extend([0] * (self.MULTI_FIELD_COUNT - len(values)))
+        else:
+            values = values[: self.MULTI_FIELD_COUNT]
+        return values
 
     def _on_test(self) -> None:
         """Parse only the first row and show the result in a separate window."""
