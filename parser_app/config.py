@@ -28,6 +28,10 @@ class AppConfig:
     ua_index: int = UA_INDEX
     cookie_index: int = COOKIE_INDEX
     remark_indices: Sequence[int] = field(default_factory=lambda: tuple(REMARK_INDEX))
+    platform_value: str = ""
+    username_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
+    password_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
+    fakey_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
     remark_delimiter: str = REMARK_DELIMITER
     separator_options: Sequence[str] = field(default_factory=lambda: tuple(SEPARATOR))
     separator: str = DEFAULT_SEPARATOR
