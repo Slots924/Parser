@@ -119,6 +119,16 @@ def test_profile_parser_sets_name_from_config():
     assert record.name == "My Profile"
 
 
+def test_profile_parser_strips_trailing_dot_from_username_values():
+    config = AppConfig(username_indices=(1, 2, 0))
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="pkrouiky@tacoblastmail.com. :: second@example.com. :: pass")
+
+    record = parser.parse(raw)
+
+    assert record.username == "pkrouiky@tacoblastmail.com,second@example.com"
+
+
 def test_profile_parser_appends_additional_breakdown_to_remark():
     config = AppConfig(
         remark_indices=(6, 0, 0),

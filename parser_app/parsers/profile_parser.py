@@ -108,5 +108,7 @@ class ProfileParser(BaseParser):
                 continue
             value = indexed_values.get(index, "").strip()
             if value:
+                if index in self.config.username_indices:
+                    value = value.rstrip(".")
                 values.append(value)
         return values
