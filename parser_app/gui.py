@@ -1,9 +1,13 @@
 """Graphical interface for the parser application."""
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+from pathlib import Path
 from typing import Sequence
 
 from parser_app.config import AppConfig
@@ -33,7 +37,10 @@ class ParserGUI:
 
         self.ua_index_var = tk.IntVar(value=self.config.ua_index)
         self.cookie_index_var = tk.IntVar(value=self.config.cookie_index)
+        self.name_var = tk.StringVar(value=self.config.profile_name)
         self.platform_var = tk.StringVar(value=self.config.platform_value)
+        self.additional_breakdown_var = tk.IntVar(value=self.config.additional_breakdown_index)
+        self.additional_separator_var = tk.StringVar(value=self.config.additional_separator)
 
         remark_defaults = list(self.config.remark_indices)
         if len(remark_defaults) < self.REMARK_FIELD_COUNT:
@@ -144,6 +151,8 @@ class ParserGUI:
         form.columnconfigure(1, weight=1)
 
         row = 0
+        self._add_labeled_entry(form, row, "NAME", self.name_var)
+        row += 1
         self._add_labeled_spinbox(form, row, "UA_INDEX", self.ua_index_var)
         row += 1
         self._add_labeled_spinbox(form, row, "COOKIE_INDEX", self.cookie_index_var)
@@ -159,6 +168,10 @@ class ParserGUI:
         self._add_multi_spinbox_row(form, row, "FAKEY", self.fakey_index_vars)
         row += 1
         self._add_separator_row(form, row)
+        row += 1
+        self._add_labeled_spinbox(form, row, "ADDITIONAL_BREAKDOWN", self.additional_breakdown_var)
+        row += 1
+        self._add_labeled_entry(form, row, "ADDITIONAL_SEPARATOR", self.additional_separator_var)
 
     def _add_labeled_spinbox(self, parent: ttk.Frame, row: int, label_text: str, variable: tk.IntVar) -> None:
         label = ttk.Label(parent, text=label_text, anchor="w")
@@ -250,10 +263,12 @@ class ParserGUI:
             return
 
         messagebox.showinfo("Успіх", f"Файл успішно створено:\n{output_path}")
+        self._reveal_output_path(Path(output_path))
 
     def _sync_config_from_form(self) -> None:
         self.config.ua_index = self._clamp_spinbox_value(self.ua_index_var)
         self.config.cookie_index = self._clamp_spinbox_value(self.cookie_index_var)
+        self.config.profile_name = self.name_var.get().strip()
         self.config.remark_indices = tuple(
             self._clamp_spinbox_value(variable) for variable in self.remark_index_vars
         )
@@ -268,6 +283,8 @@ class ParserGUI:
             self._clamp_spinbox_value(variable) for variable in self.fakey_index_vars
         )
         self.config.separator = self.separator_var.get()
+        self.config.additional_breakdown_index = self._clamp_spinbox_value(self.additional_breakdown_var)
+        self.config.additional_separator = self.additional_separator_var.get()
 
     def _clamp_spinbox_value(self, variable: tk.IntVar) -> int:
         try:
@@ -334,6 +351,22 @@ class ParserGUI:
 
         text_widget.insert("1.0", "\n".join(formatted_lines))
         text_widget.configure(state="disabled")
+
+    def _reveal_output_path(self, output_path: Path) -> None:
+        try:
+            if sys.platform.startswith("win"):
+                subprocess.run(["explorer", "/select,", str(output_path)], check=False)
+                return
+            if sys.platform == "darwin":
+                subprocess.run(["open", "-R", str(output_path)], check=False)
+                return
+            if shutil.which("nautilus"):
+                subprocess.run(["nautilus", "--select", str(output_path)], check=False)
+                return
+            subprocess.run(["xdg-open", str(output_path.parent)], check=False)
+        except Exception:
+            # Ignore errors silently; parsing result is already created.
+            pass
 
 
 def run() -> None:

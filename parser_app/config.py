@@ -25,6 +25,7 @@ from settings import (
 class AppConfig:
     """Holds runtime configuration for the parsing pipeline."""
 
+    profile_name: str = ""
     ua_index: int = UA_INDEX
     cookie_index: int = COOKIE_INDEX
     remark_indices: Sequence[int] = field(default_factory=lambda: tuple(REMARK_INDEX))
@@ -32,6 +33,8 @@ class AppConfig:
     username_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
     password_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
     fakey_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
+    additional_breakdown_index: int = 0
+    additional_separator: str = ""
     remark_delimiter: str = REMARK_DELIMITER
     separator_options: Sequence[str] = field(default_factory=lambda: tuple(SEPARATOR))
     separator: str = DEFAULT_SEPARATOR
