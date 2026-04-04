@@ -129,7 +129,7 @@ def test_profile_parser_strips_trailing_dot_from_username_values():
     assert record.username == "pkrouiky@tacoblastmail.com,second@example.com"
 
 
-def test_profile_parser_appends_additional_breakdown_to_remark():
+def test_profile_parser_keeps_remark_without_additional_breakdown_labels():
     config = AppConfig(
         remark_indices=(6, 0, 0),
         additional_breakdown_index=7,
@@ -144,7 +144,7 @@ def test_profile_parser_appends_additional_breakdown_to_remark():
 
     record = parser.parse(raw)
 
-    assert record.remark == "base remark :: [701] - first :: [702] - second :: [703] - third"
+    assert record.remark == "base remark"
 
 
 def test_profile_parser_can_use_700_indices_for_mapped_fields():
