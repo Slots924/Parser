@@ -25,11 +25,9 @@ class ProfileParser(BaseParser):
         username_values = self._collect_values(indexed_values, self.config.username_indices)
         password_values = self._collect_values(indexed_values, self.config.password_indices)
         fakey_values = self._collect_values(indexed_values, self.config.fakey_indices)
-        full_remark = self._merge_remark_with_additional(remark, additional_values)
-
         record = ProfileRecord(
             name=self.config.profile_name.strip(),
-            remark=full_remark,
+            remark=remark,
             tab=self.config.tab_value,
             platform=self.config.platform_value.strip(),
             username=",".join(username_values),
@@ -69,18 +67,6 @@ class ProfileParser(BaseParser):
         if not source_value:
             return []
         return [item.strip() for item in source_value.split(separator) if item.strip()]
-
-    def _merge_remark_with_additional(self, remark: str, additional_values: list[str]) -> str:
-        if not additional_values:
-            return remark
-
-        prefix = self.config.additional_breakdown_index * 100
-        labeled_values = [
-            f"[{prefix + order}] - {value}" for order, value in enumerate(additional_values, start=1)
-        ]
-        if not remark:
-            return self.config.remark_delimiter.join(labeled_values)
-        return self.config.remark_delimiter.join([remark, *labeled_values])
 
     def _build_remark(self, indexed_values: dict[int, str], indices: Sequence[int] | None = None) -> str:
         selected_indices: Sequence[int] = self.config.remark_indices if indices is None else indices
