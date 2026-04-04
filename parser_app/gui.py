@@ -15,6 +15,7 @@ from parser_app.exporters.excel_exporter import ExcelExporter
 from parser_app.parsers.profile_parser import ProfileParser
 from parser_app.readers.text_reader import TextReader
 from parser_app.services.pipeline import ProcessingPipeline
+from parser_app.services.preview import preview_first_row
 
 
 class ParserGUI:
@@ -236,7 +237,7 @@ class ParserGUI:
         spinbox = ttk.Spinbox(
             parent,
             from_=0,
-            to=99,
+            to=9999,
             textvariable=variable,
             width=4,
             justify="center",
@@ -291,7 +292,7 @@ class ParserGUI:
             value = int(variable.get())
         except (tk.TclError, ValueError):
             return 0
-        return max(0, min(99, value))
+        return max(0, min(9999, value))
 
     def _normalize_indices(self, indices: Sequence[int]) -> list[int]:
         values = list(indices)
@@ -315,12 +316,16 @@ class ParserGUI:
             messagebox.showinfo("Немає даних", "Введіть або вставте дані для тесту.")
             return
 
-        first_line = lines[0]
         separator = self.separator_var.get() or self.config.separator
-        parsed_values = first_line.split(separator)
+        parsed_values = preview_first_row(
+            lines,
+            separator=separator,
+            additional_breakdown_index=self.config.additional_breakdown_index,
+            additional_separator=self.config.additional_separator,
+        )
         self._show_test_result(parsed_values)
 
-    def _show_test_result(self, values: list[str]) -> None:
+    def _show_test_result(self, values: list[tuple[int, str]]) -> None:
         """Display parsed values of the first line in a scrollable window."""
 
         result_window = tk.Toplevel(self.root)
@@ -345,7 +350,7 @@ class ParserGUI:
 
         text_widget.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
-        formatted_lines = [f"[{idx}] - {value.strip()}" for idx, value in enumerate(values, start=1)]
+        formatted_lines = [f"[{idx}] - {value.strip()}" for idx, value in values]
         if not formatted_lines:
             formatted_lines = ["Дані для відображення відсутні."]
 

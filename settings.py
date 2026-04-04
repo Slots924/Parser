@@ -10,6 +10,7 @@ REMARK_INDEX: list[int] = [6, 7, 0]
 REMARK_DELIMITER = " :: "
 SEPARATOR: list[str] = [" :: ", ",", ";", "|", "\t"]
 DEFAULT_SEPARATOR = SEPARATOR[0]
+DEFAULT_PLATFORM_VALUE = "facebook.com, firstmail.ltd"
 TAB_VALUE = "https://www.facebook.com/"
 PROXY_TYPE = "noproxy"
 

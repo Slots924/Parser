@@ -9,6 +9,7 @@ from typing import Iterable, Sequence
 from settings import (
     COOKIE_INDEX,
     DEFAULT_SEPARATOR,
+    DEFAULT_PLATFORM_VALUE,
     HEADERS,
     OUTPUT_DIR,
     PROXY_TYPE,
@@ -29,7 +30,7 @@ class AppConfig:
     ua_index: int = UA_INDEX
     cookie_index: int = COOKIE_INDEX
     remark_indices: Sequence[int] = field(default_factory=lambda: tuple(REMARK_INDEX))
-    platform_value: str = ""
+    platform_value: str = DEFAULT_PLATFORM_VALUE
     username_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
     password_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))
     fakey_indices: Sequence[int] = field(default_factory=lambda: (0, 0, 0))

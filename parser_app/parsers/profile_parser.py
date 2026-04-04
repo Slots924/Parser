@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from parser_app.config import AppConfig
-from parser_app.models import ProfileRecord, RawRecord, safe_get
+from parser_app.models import ProfileRecord, RawRecord
 from parser_app.parsers.base import BaseParser
 
 
@@ -16,14 +16,15 @@ class ProfileParser(BaseParser):
 
     def parse(self, raw: RawRecord) -> ProfileRecord:
         parts = raw.parts(self.config.separator)
-
-        ua = safe_get(parts, self.config.ua_index)
-        cookie = safe_get(parts, self.config.cookie_index)
-        remark = self._build_remark(parts, self.config.remark_indices)
-        username_values = self._collect_values(parts, self.config.username_indices)
-        password_values = self._collect_values(parts, self.config.password_indices)
-        fakey_values = self._collect_values(parts, self.config.fakey_indices)
         additional_values = self._collect_additional_values(parts)
+        indexed_values = self._build_indexed_values(parts, additional_values)
+
+        ua = self._get_indexed_value(indexed_values, self.config.ua_index)
+        cookie = self._get_indexed_value(indexed_values, self.config.cookie_index)
+        remark = self._build_remark(indexed_values, self.config.remark_indices)
+        username_values = self._collect_values(indexed_values, self.config.username_indices)
+        password_values = self._collect_values(indexed_values, self.config.password_indices)
+        fakey_values = self._collect_values(indexed_values, self.config.fakey_indices)
         full_remark = self._merge_remark_with_additional(remark, additional_values)
 
         record = ProfileRecord(
@@ -40,13 +41,31 @@ class ProfileParser(BaseParser):
         )
         return record
 
+    def _build_indexed_values(self, parts: list[str], additional_values: list[str]) -> dict[int, str]:
+        values = {index: value for index, value in enumerate(parts, start=1)}
+        if not additional_values or self.config.additional_breakdown_index <= 0:
+            return values
+
+        prefix = self.config.additional_breakdown_index * 100
+        for order, value in enumerate(additional_values, start=1):
+            values[prefix + order] = value
+        return values
+
+    def _get_indexed_value(self, indexed_values: dict[int, str], index: int) -> str:
+        if index <= 0:
+            return ""
+        return indexed_values.get(index, "").strip()
+
     def _collect_additional_values(self, parts: list[str]) -> list[str]:
         if self.config.additional_breakdown_index <= 0:
             return []
         separator = self.config.additional_separator
         if not separator:
             return []
-        source_value = safe_get(parts, self.config.additional_breakdown_index).strip()
+        source_pos = self.config.additional_breakdown_index - 1
+        if source_pos < 0 or source_pos >= len(parts):
+            return []
+        source_value = parts[source_pos].strip()
         if not source_value:
             return []
         return [item.strip() for item in source_value.split(separator) if item.strip()]
@@ -55,7 +74,7 @@ class ProfileParser(BaseParser):
         if not additional_values:
             return remark
 
-        prefix = self.config.additional_breakdown_index * 10
+        prefix = self.config.additional_breakdown_index * 100
         labeled_values = [
             f"[{prefix + order}] - {value}" for order, value in enumerate(additional_values, start=1)
         ]
@@ -63,7 +82,7 @@ class ProfileParser(BaseParser):
             return self.config.remark_delimiter.join(labeled_values)
         return self.config.remark_delimiter.join([remark, *labeled_values])
 
-    def _build_remark(self, parts: list[str], indices: Sequence[int] | None = None) -> str:
+    def _build_remark(self, indexed_values: dict[int, str], indices: Sequence[int] | None = None) -> str:
         selected_indices: Sequence[int] = self.config.remark_indices if indices is None else indices
         indices_list = list(selected_indices)
         if not indices_list or all(index == 0 for index in indices_list):
@@ -73,7 +92,7 @@ class ProfileParser(BaseParser):
         for index in indices_list:
             if index <= 0:
                 continue
-            value = safe_get(parts, index)
+            value = indexed_values.get(index, "")
             if value:
                 values.append(value.strip())
 
@@ -82,12 +101,12 @@ class ProfileParser(BaseParser):
 
         return self.config.remark_delimiter.join(values)
 
-    def _collect_values(self, parts: list[str], indices: Sequence[int]) -> list[str]:
+    def _collect_values(self, indexed_values: dict[int, str], indices: Sequence[int]) -> list[str]:
         values: list[str] = []
         for index in indices:
             if index <= 0:
                 continue
-            value = safe_get(parts, index).strip()
+            value = indexed_values.get(index, "").strip()
             if value:
                 values.append(value)
         return values

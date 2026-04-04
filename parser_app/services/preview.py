@@ -9,7 +9,12 @@ from parser_app.models import RawRecord
 PreviewRow = Tuple[int, str]
 
 
-def preview_first_row(lines: Iterable[str], separator: str = " :: ") -> List[PreviewRow]:
+def preview_first_row(
+    lines: Iterable[str],
+    separator: str = " :: ",
+    additional_breakdown_index: int = 0,
+    additional_separator: str = "",
+) -> List[PreviewRow]:
     """Return the indexed parts of the first non-empty row.
 
     Parameters
@@ -33,5 +38,19 @@ def preview_first_row(lines: Iterable[str], separator: str = " :: ") -> List[Pre
             continue
         raw = RawRecord(line_no=line_no, content=cleaned)
         parts = raw.parts(separator)
-        return [(index, part) for index, part in enumerate(parts, start=1)]
+        preview_rows: List[PreviewRow] = [(index, part) for index, part in enumerate(parts, start=1)]
+        if additional_breakdown_index <= 0 or not additional_separator:
+            return preview_rows
+
+        source_pos = additional_breakdown_index - 1
+        if source_pos < 0 or source_pos >= len(parts):
+            return preview_rows
+        source_value = parts[source_pos].strip()
+        if not source_value:
+            return preview_rows
+
+        extra_parts = [item.strip() for item in source_value.split(additional_separator) if item.strip()]
+        extra_prefix = additional_breakdown_index * 100
+        preview_rows.extend((extra_prefix + order, value) for order, value in enumerate(extra_parts, start=1))
+        return preview_rows
     return []

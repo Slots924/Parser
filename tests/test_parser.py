@@ -134,7 +134,27 @@ def test_profile_parser_appends_additional_breakdown_to_remark():
 
     record = parser.parse(raw)
 
-    assert record.remark == "base remark :: [71] - first :: [72] - second :: [73] - third"
+    assert record.remark == "base remark :: [701] - first :: [702] - second :: [703] - third"
+
+
+def test_profile_parser_can_use_700_indices_for_mapped_fields():
+    config = AppConfig(
+        additional_breakdown_index=7,
+        additional_separator=";",
+        username_indices=(701, 0, 0),
+        password_indices=(702, 0, 0),
+        fakey_indices=(703, 0, 0),
+        ua_index=704,
+    )
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="a :: b :: c :: d :: e :: f :: email;token;secret;ua-string")
+
+    record = parser.parse(raw)
+
+    assert record.username == "email"
+    assert record.password == '"token"'
+    assert record.fakey == "secret"
+    assert record.ua == "ua-string"
 
 
 def test_profile_parser_skips_additional_breakdown_when_index_is_zero():
