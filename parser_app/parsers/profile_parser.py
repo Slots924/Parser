@@ -23,9 +23,12 @@ class ProfileParser(BaseParser):
         username_values = self._collect_values(parts, self.config.username_indices)
         password_values = self._collect_values(parts, self.config.password_indices)
         fakey_values = self._collect_values(parts, self.config.fakey_indices)
+        additional_values = self._collect_additional_values(parts)
+        full_remark = self._merge_remark_with_additional(remark, additional_values)
 
         record = ProfileRecord(
-            remark=remark,
+            name=self.config.profile_name.strip(),
+            remark=full_remark,
             tab=self.config.tab_value,
             platform=self.config.platform_value.strip(),
             username=",".join(username_values),
@@ -36,6 +39,29 @@ class ProfileParser(BaseParser):
             ua=ua,
         )
         return record
+
+    def _collect_additional_values(self, parts: list[str]) -> list[str]:
+        if self.config.additional_breakdown_index <= 0:
+            return []
+        separator = self.config.additional_separator
+        if not separator:
+            return []
+        source_value = safe_get(parts, self.config.additional_breakdown_index).strip()
+        if not source_value:
+            return []
+        return [item.strip() for item in source_value.split(separator) if item.strip()]
+
+    def _merge_remark_with_additional(self, remark: str, additional_values: list[str]) -> str:
+        if not additional_values:
+            return remark
+
+        prefix = self.config.additional_breakdown_index * 10
+        labeled_values = [
+            f"[{prefix + order}] - {value}" for order, value in enumerate(additional_values, start=1)
+        ]
+        if not remark:
+            return self.config.remark_delimiter.join(labeled_values)
+        return self.config.remark_delimiter.join([remark, *labeled_values])
 
     def _build_remark(self, parts: list[str], indices: Sequence[int] | None = None) -> str:
         selected_indices: Sequence[int] = self.config.remark_indices if indices is None else indices

@@ -107,3 +107,45 @@ def test_profile_parser_skips_optional_fields_for_zero_indices():
     assert record.username == ""
     assert record.password == ""
     assert record.fakey == ""
+
+
+def test_profile_parser_sets_name_from_config():
+    config = AppConfig(profile_name="  My Profile  ")
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="user :: pass :: ua :: extra :: cookie")
+
+    record = parser.parse(raw)
+
+    assert record.name == "My Profile"
+
+
+def test_profile_parser_appends_additional_breakdown_to_remark():
+    config = AppConfig(
+        remark_indices=(6, 0, 0),
+        additional_breakdown_index=7,
+        additional_separator="|",
+        remark_delimiter=" :: ",
+    )
+    parser = ProfileParser(config)
+    raw = RawRecord(
+        line_no=1,
+        content="a :: b :: ua :: d :: cookie :: base remark :: first| second |third",
+    )
+
+    record = parser.parse(raw)
+
+    assert record.remark == "base remark :: [71] - first :: [72] - second :: [73] - third"
+
+
+def test_profile_parser_skips_additional_breakdown_when_index_is_zero():
+    config = AppConfig(
+        remark_indices=(6, 0, 0),
+        additional_breakdown_index=0,
+        additional_separator="|",
+    )
+    parser = ProfileParser(config)
+    raw = RawRecord(line_no=1, content="a :: b :: ua :: d :: cookie :: base remark :: first|second")
+
+    record = parser.parse(raw)
+
+    assert record.remark == "base remark"
