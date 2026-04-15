@@ -16,6 +16,14 @@ from parser_app.parsers.profile_parser import ProfileParser
 from parser_app.readers.text_reader import TextReader
 from parser_app.services.pipeline import ProcessingPipeline
 from parser_app.services.preview import preview_first_row
+from parser_app.gui_state import (
+    default_profile_name,
+    load_gui_state,
+    read_int,
+    read_int_list,
+    read_str,
+    save_gui_state,
+)
 
 
 class ParserGUI:
@@ -27,6 +35,7 @@ class ParserGUI:
     def __init__(self, root: tk.Tk | None = None, config: AppConfig | None = None) -> None:
         self.root = root or tk.Tk()
         self.config = config or AppConfig()
+        self._persisted_state = load_gui_state()
 
         self._init_variables()
         self._setup_styles()
@@ -36,33 +45,60 @@ class ParserGUI:
     def _init_variables(self) -> None:
         """Initialize Tk variables bound to the settings form."""
 
-        self.ua_index_var = tk.IntVar(value=self.config.ua_index)
-        self.cookie_index_var = tk.IntVar(value=self.config.cookie_index)
-        self.name_var = tk.StringVar(value=self.config.profile_name)
-        self.platform_var = tk.StringVar(value=self.config.platform_value)
-        self.additional_breakdown_var = tk.IntVar(value=self.config.additional_breakdown_index)
-        self.additional_separator_var = tk.StringVar(value=self.config.additional_separator)
+        state = self._persisted_state
 
-        remark_defaults = list(self.config.remark_indices)
-        if len(remark_defaults) < self.REMARK_FIELD_COUNT:
-            remark_defaults.extend([0] * (self.REMARK_FIELD_COUNT - len(remark_defaults)))
-        else:
-            remark_defaults = remark_defaults[: self.REMARK_FIELD_COUNT]
+        self.ua_index_var = tk.IntVar(value=read_int(state.get("ua_index"), default=self.config.ua_index))
+        self.cookie_index_var = tk.IntVar(
+            value=read_int(state.get("cookie_index"), default=self.config.cookie_index)
+        )
+
+        persisted_name = read_str(state.get("name"), default=self.config.profile_name).strip()
+        name_default = persisted_name or default_profile_name()
+        self.name_var = tk.StringVar(value=name_default)
+
+        self.platform_var = tk.StringVar(
+            value=read_str(state.get("platform"), default=self.config.platform_value)
+        )
+        self.additional_breakdown_var = tk.IntVar(
+            value=read_int(state.get("additional_breakdown"), default=self.config.additional_breakdown_index)
+        )
+        self.additional_separator_var = tk.StringVar(
+            value=read_str(state.get("additional_separator"), default=self.config.additional_separator)
+        )
+
+        remark_defaults = read_int_list(state.get("remark_indices"), self.REMARK_FIELD_COUNT)
+        if not any(remark_defaults):
+            remark_defaults = self._normalize_indices(self.config.remark_indices, size=self.REMARK_FIELD_COUNT)
         self.remark_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in remark_defaults]
-        username_defaults = self._normalize_indices(self.config.username_indices)
-        password_defaults = self._normalize_indices(self.config.password_indices)
-        fakey_defaults = self._normalize_indices(self.config.fakey_indices)
-        self.username_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in username_defaults]
-        self.password_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in password_defaults]
-        self.fakey_index_vars: list[tk.IntVar] = [tk.IntVar(value=value) for value in fakey_defaults]
+
+        username_defaults = read_int_list(state.get("username_indices"), self.MULTI_FIELD_COUNT)
+        if not any(username_defaults):
+            username_defaults = self._normalize_indices(self.config.username_indices)
+
+        password_defaults = read_int_list(state.get("password_indices"), self.MULTI_FIELD_COUNT)
+        if not any(password_defaults):
+            password_defaults = self._normalize_indices(self.config.password_indices)
+
+        fakey_defaults = read_int_list(state.get("fakey_indices"), self.MULTI_FIELD_COUNT)
+        if not any(fakey_defaults):
+            fakey_defaults = self._normalize_indices(self.config.fakey_indices)
+
+        self.username_index_vars = [tk.IntVar(value=value) for value in username_defaults]
+        self.password_index_vars = [tk.IntVar(value=value) for value in password_defaults]
+        self.fakey_index_vars = [tk.IntVar(value=value) for value in fakey_defaults]
 
         separator_options = list(dict.fromkeys(self.config.separator_options))
         if not separator_options:
             separator_options = [self.config.separator]
         if self.config.separator not in separator_options:
             separator_options.insert(0, self.config.separator)
+
+        persisted_separator = read_str(state.get("separator"), default=self.config.separator)
+        if persisted_separator and persisted_separator not in separator_options:
+            separator_options.insert(0, persisted_separator)
+
         self.separator_options = separator_options
-        self.separator_var = tk.StringVar(value=self.config.separator)
+        self.separator_var = tk.StringVar(value=persisted_separator or self.config.separator)
 
     def _setup_styles(self) -> None:
         style = ttk.Style()
@@ -93,6 +129,7 @@ class ParserGUI:
         self.root.columnconfigure(0, weight=0)
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(0, weight=1)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _center_geometry(self, width: int, height: int) -> str:
         self.root.update_idletasks()
@@ -144,6 +181,9 @@ class ParserGUI:
         h_scroll.grid(row=1, column=0, sticky="ew")
 
         self.text_widget.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        persisted_text = read_str(self._persisted_state.get("raw_text"), default="")
+        if persisted_text:
+            self.text_widget.insert("1.0", persisted_text)
 
     def _build_settings_form(self) -> None:
         form = ttk.Frame(self.settings_container, style="Settings.TFrame")
@@ -286,6 +326,7 @@ class ParserGUI:
         self.config.separator = self.separator_var.get()
         self.config.additional_breakdown_index = self._clamp_spinbox_value(self.additional_breakdown_var)
         self.config.additional_separator = self.additional_separator_var.get()
+        self._persist_form_state()
 
     def _clamp_spinbox_value(self, variable: tk.IntVar) -> int:
         try:
@@ -294,13 +335,43 @@ class ParserGUI:
             return 0
         return max(0, min(9999, value))
 
-    def _normalize_indices(self, indices: Sequence[int]) -> list[int]:
-        values = list(indices)
-        if len(values) < self.MULTI_FIELD_COUNT:
-            values.extend([0] * (self.MULTI_FIELD_COUNT - len(values)))
+    def _normalize_indices(self, indices: Sequence[int], size: int | None = None) -> list[int]:
+        expected_size = size or self.MULTI_FIELD_COUNT
+        values = [read_int(value) for value in indices]
+        if len(values) < expected_size:
+            values.extend([0] * (expected_size - len(values)))
         else:
-            values = values[: self.MULTI_FIELD_COUNT]
+            values = values[:expected_size]
         return values
+
+    def _collect_form_state(self) -> dict[str, object]:
+        """Collect current form values for safe persistence."""
+
+        return {
+            "ua_index": self._clamp_spinbox_value(self.ua_index_var),
+            "cookie_index": self._clamp_spinbox_value(self.cookie_index_var),
+            "name": self.name_var.get(),
+            "platform": self.platform_var.get(),
+            "remark_indices": [self._clamp_spinbox_value(variable) for variable in self.remark_index_vars],
+            "username_indices": [self._clamp_spinbox_value(variable) for variable in self.username_index_vars],
+            "password_indices": [self._clamp_spinbox_value(variable) for variable in self.password_index_vars],
+            "fakey_indices": [self._clamp_spinbox_value(variable) for variable in self.fakey_index_vars],
+            "separator": self.separator_var.get(),
+            "additional_breakdown": self._clamp_spinbox_value(self.additional_breakdown_var),
+            "additional_separator": self.additional_separator_var.get(),
+            "raw_text": self.text_widget.get("1.0", "end-1c"),
+        }
+
+    def _persist_form_state(self) -> None:
+        """Persist form values without interrupting UI flow."""
+
+        save_gui_state(self._collect_form_state())
+
+    def _on_close(self) -> None:
+        """Persist values before window closes."""
+
+        self._persist_form_state()
+        self.root.destroy()
 
     def _on_test(self) -> None:
         """Parse only the first row and show the result in a separate window."""
